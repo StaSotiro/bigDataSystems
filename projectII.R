@@ -13,7 +13,26 @@ listings = read.csv("modified_dummy.csv", sep = ",")
 str(emails)
 str(listings)
 
-# Maybe add users in Hashes? 
+# Maybe add users in Sorted Sets? <- Don't run for now... I see no point atm
+
+count=0
+
+for(listing in listings){
+  
+  if(listing$MonthID ==1){
+    print("Adding to Jan")
+    redis$ZADD("modJan", "0")
+  }
+  if(listing$MonthID==2){
+    print("Adding to FEB")
+    redis$ZADD("modFeb", count, 1)
+  }
+  if(listing$MonthID==3){
+    print("Adding to MAR")
+    redis$ZADD("modMar", count, 1)
+  }
+}
+
 
 # Task 1 
 
@@ -43,7 +62,7 @@ curUser = emails$UserID[1]
 count=0
 
 for(i in 0:(nrow(emails)-1)){
-  print(i)
+  
   if(emails$UserID[i+1] != curUser){
     print(paste( "Changing User", i))
     curUser = emails$UserID[i+1]
@@ -78,3 +97,29 @@ redis$BITOP("NOT","NotMailFeb", "mailFeb")
 # BITOP AND mailsJanMar mailJan NotMailFeb mailMar
 
 totalSum = redis$BITCOUNT("mailsJanMar")
+
+
+# Task 5
+
+# Generate two bitmaps, emails opened and udpated and compare the two
+curUser = emails$UserID[1]
+count=0
+
+for(i in 0:(nrow(emails)-1)){
+  if(emails$UserID[i+1] != curUser){
+    curUser = emails$UserID[i+1]
+    count= count + 1
+  } 
+  if(emails$MonthID[i+1]==1 && emails$EmailOpened[i+1]==0){
+    redis$SETBIT("mailNotOpenedJan", count, 1)
+  }
+}
+
+# bitop and notOpenAndUpdated ModificationsJanuary mailNotOpenedJan
+print(paste("Customers that received an email, did not open it, yet modified listings in Jan: ", redis$BITCOUNT("notOpenAndUpdated"), " out of ", length(januaryListings)))
+
+# Task 6 Just like the above, but you need to create it for the other two months, then do a BITMAP OR of the final 3 Bitmaps 
+# it's for U <3 
+
+
+# Task 7 Summary of results
