@@ -7,13 +7,13 @@ redis = redux::hiredis(
 
 setwd("/Users/stavros/Documents/BI/BigDataSystems/Redis-Mongo Assignment-v1.3/RECORDED_ACTIONS")
 
-emails = read.csv("emails_dummy.csv", sep = ",")
-listings = read.csv("modified_dummy.csv", sep = ",")
+emails = read.csv("emails_sent.csv", sep = ",")
+listings = read.csv("modified_listings.csv", sep = ",")
 
 str(emails)
 str(listings)
 
-# Maybe add users in Sorted Sets? <- Don't run for now... I see no point atm
+# Maybe add users in Sorted Sets? 
 
 count=0
 
@@ -40,23 +40,26 @@ for(listing in listings){
 januaryListings = listings[listings$MonthID==1,"ModifiedListing"]
 
 
-for(i in 0:length(januaryListings)-1){
+for(i in 0:(length(januaryListings)-1)){
   if(januaryListings[i+1]==1){
     redis$SETBIT("ModificationsJanuary", i, 1)
   }
 }
 
 print(paste("Customers that modified listings in Jan: ", redis$BITCOUNT("ModificationsJanuary"), " out of ", length(januaryListings)))
+# "Customers that modified listings in Jan:  9969  out of  19999"
 
 # Task 2
 redis$BITOP("NOT", "NotModsJan", "ModificationsJanuary")
 
 print(paste("Customers that modified listings in Jan: ", redis$BITCOUNT("NotModsJan"), " out of ", length(januaryListings)))
+# "Customers that modified listings in Jan:  10031  out of  19999"
 
 # Comparison doesn't show all the modifications, because the check is on byte level, whereas we store the data in bit level
 # That means that the last Listings % 8 will not be compared, so their values will not be moved 
 
 # Validate the statement by adding 1,2,3,..8 and see the results
+# The last result in the data set sums it up to 20000, which is off naturally
 
 curUser = emails$UserID[1]
 count=0
@@ -64,20 +67,20 @@ count=0
 for(i in 0:(nrow(emails)-1)){
   
   if(emails$UserID[i+1] != curUser){
-    print(paste( "Changing User", i))
+    # print(paste( "Changing User", i))
     curUser = emails$UserID[i+1]
     count= count + 1
   } 
   if(emails$MonthID[i+1]==1){
-    print("Adding to Jan")
+    # print("Adding to Jan")
     redis$SETBIT("mailJan", count, 1)
   }
   if(emails$MonthID[i+1]==2){
-    print("Adding to FEB")
+    # print("Adding to FEB")
     redis$SETBIT("mailFeb", count, 1)
   }
   if(emails$MonthID[i+1]==3){
-    print("Adding to MAR")
+    # print("Adding to MAR")
     redis$SETBIT("mailMar", count, 1)
   }
 }
@@ -86,22 +89,24 @@ for(i in 0:(nrow(emails)-1)){
 # redis$BITOP("AND", "allMailsThreeMonths", "mailJan", "mailFeb", "mailMar")
 
 totalSum = redis$BITCOUNT("allMailsThreeMonths")
-# Here we need to add some logic to calculate the last emailsSent % 8 and do it by hand
+# Here we need to add some logic to calculate the last emailsSent % 8 and do it by hand ? 
 print(paste("Customers that got email in all 3 months: ", totalSum))
 
+# "Customers that got email in all 3 months:  2668"
 
 # Task 4 
 
 redis$BITOP("NOT","NotMailFeb", "mailFeb")
 
 # BITOP AND mailsJanMar mailJan NotMailFeb mailMar
-
+# Same as above
 totalSum = redis$BITCOUNT("mailsJanMar")
 
+# 2417
 
 # Task 5
 
-# Generate two bitmaps, emails opened and udpated and compare the two
+# Generate two bitmaps, emails opened and updated and compare the two
 curUser = emails$UserID[1]
 count=0
 
@@ -117,6 +122,9 @@ for(i in 0:(nrow(emails)-1)){
 
 # bitop and notOpenAndUpdated ModificationsJanuary mailNotOpenedJan
 print(paste("Customers that received an email, did not open it, yet modified listings in Jan: ", redis$BITCOUNT("notOpenAndUpdated"), " out of ", length(januaryListings)))
+
+# "Customers that received an email, did not open it, yet modified listings in Jan:  2844  out of  19999"
+
 
 # Task 6 Just like the above, but you need to create it for the other two months, then do a BITMAP OR of the final 3 Bitmaps 
 # it's for U <3 
